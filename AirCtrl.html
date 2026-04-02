@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AirCtrl</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#8fe7ff;--gold-l:#c9a84c;--red:#e84560;--green:#3de07a;--blue:#4cc9f0;
+  --panel-bg:rgba(8,9,13,.78);--border:rgba(255,255,255,.09);
+  --text:#dcdce4;--dim:#5a5a70;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;
+  font-family:'JetBrains Mono',monospace;-webkit-font-smoothing:antialiased}
+#vid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);z-index:0;transition:opacity .35s}
+#vidOff{position:fixed;inset:0;background:radial-gradient(ellipse at 30% 40%,#0c0c18,#060608);z-index:0;opacity:0;transition:opacity .35s;pointer-events:none}
+#drawCanvas,#ovCanvas{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:2}
+#ovCanvas{pointer-events:none;z-index:3}
+#camToggle{position:fixed;top:16px;left:16px;z-index:600;background:var(--panel-bg);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:999px;padding:8px 16px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.5px;cursor:pointer;transition:all .2s}
+#camToggle:hover{border-color:var(--gold);color:var(--gold)}
+#camToggle.off{color:var(--dim);border-color:rgba(255,255,255,.05)}
+#brand{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:600;font-family:'DM Serif Display',serif;font-size:22px;color:rgba(255,255,255,.12);letter-spacing:6px;pointer-events:none;user-select:none}
+#panel{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:500;width:72px;background:var(--panel-bg);backdrop-filter:blur(28px);border:1px solid var(--border);border-radius:22px;padding:16px 0 14px;display:flex;flex-direction:column;align-items:center;gap:0}
+.plbl{font-size:7px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:8px;margin-top:2px}
+.pdiv{width:40px;height:1px;background:rgba(255,255,255,.06);margin:10px 0}
+.clrgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 10px;margin-bottom:4px}
+.csw{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s}
+.csw:hover{transform:scale(1.2)}
+.csw.on{border-color:#fff;transform:scale(1.15)}
+.vswrap{height:90px;width:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;position:relative}
+.vsl{-webkit-appearance:none;appearance:none;width:90px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer;transform:rotate(-90deg)}
+.vsl::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer;box-shadow:0 0 8px rgba(143,231,255,.5)}
+.vval{font-size:9px;color:var(--gold);text-align:center;margin-bottom:2px}
+.strow{display:flex;flex-direction:column;gap:4px;padding:0 10px;margin-bottom:4px}
+.stb{width:52px;height:24px;border-radius:7px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--dim);cursor:pointer;font-size:11px;transition:all .14s;display:flex;align-items:center;justify-content:center}
+.stb:hover{border-color:var(--gold);background:rgba(143,231,255,.1)}
+.stb.on{background:rgba(143,231,255,.12);border-color:var(--gold);color:#fff}
+.actrow{display:flex;flex-direction:column;gap:6px;padding:0 10px}
+.abt{width:52px;height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--dim);cursor:pointer;font-size:16px;transition:all .14s;display:flex;align-items:center;justify-content:center}
+.abt:hover{border-color:var(--gold);color:#fff;background:rgba(143,231,255,.08)}
+.abt.red:hover{border-color:var(--red);background:rgba(232,69,96,.12)}
+#hud{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:500;pointer-events:none;background:rgba(6,6,8,.82);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:10px 28px;font-size:13px;letter-spacing:2.5px;color:var(--text);display:flex;align-items:center;gap:10px;transition:opacity .25s}
+#hudEmoji{font-size:18px}
+#hudLabel{font-size:10px;letter-spacing:2px;color:var(--text)}
+#zoomHud{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:500;pointer-events:none;background:rgba(6,6,8,.7);backdrop-filter:blur(12px);border:1px solid rgba(143,231,255,.2);border-radius:999px;padding:5px 18px;font-size:10px;letter-spacing:2px;color:var(--gold);opacity:0;transition:opacity .3s}
+#cur{position:fixed;border-radius:50%;border:2px solid var(--gold);pointer-events:none;z-index:1000;transform:translate(-50%,-50%);transition:width .1s,height .1s,border-color .15s,opacity .2s;mix-blend-mode:screen;opacity:0}
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(9,9,12,.9);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:8px 20px;font-size:9px;letter-spacing:2px;color:var(--gold);z-index:700;opacity:0;transition:opacity .18s;pointer-events:none}
+#splash{position:fixed;inset:0;background:#060608;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:opacity .6s}
+.sp-brand{font-family:'DM Serif Display',serif;font-size:56px;color:var(--gold);letter-spacing:10px;text-shadow:0 0 60px rgba(143,231,255,.22)}
+.sp-tag{font-size:8px;letter-spacing:4px;color:var(--dim);text-transform:uppercase}
+.sp-bar{width:120px;height:1px;background:rgba(255,255,255,.07);margin-top:24px;position:relative;overflow:hidden;border-radius:1px}
+.sp-bar::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:bs 2s ease-out forwards}
+@keyframes bs{0%{left:-100%}100%{left:100%}}
+.sp-st{font-size:8px;letter-spacing:1.5px;color:rgba(255,255,255,.2);margin-top:8px}
+::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="sp-brand">AirCtrl</div>
+  <div class="sp-tag">Gesture Drawing Studio</div>
+  <div class="sp-bar"></div>
+  <div class="sp-st" id="spSt">Starting camera…</div>
+</div>
+
+<video id="vid" autoplay playsinline muted></video>
+<div id="vidOff"></div>
+<canvas id="drawCanvas"></canvas>
+<canvas id="ovCanvas"></canvas>
+
+<button id="camToggle" onclick="toggleCam()">📷&nbsp; Camera ON</button>
+<div id="brand">AirCtrl</div>
+
+<div id="panel">
+  <div class="plbl">COLORS</div>
+  <div class="clrgrid">
+    <div class="csw on"  data-c="#ffffff" style="background:#ffffff" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#4cc9f0" style="background:#4cc9f0" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#f72585" style="background:#f72585" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#3de07a" style="background:#3de07a" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#f9ca24" style="background:#f9ca24" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#c56cf0" style="background:#c56cf0" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#ff6b6b" style="background:#ff6b6b" onclick="pickColor(this)"></div>
+    <div class="csw"     data-c="#ffd460" style="background:#ffd460" onclick="pickColor(this)"></div>
+  </div>
+  <div class="pdiv"></div>
+  <div class="plbl">THICK</div>
+  <div class="vswrap">
+    <input type="range" class="vsl" id="sSize" min="1" max="40" value="6" oninput="onSize(this)">
+  </div>
+  <div class="vval" id="vSize">6px</div>
+  <div class="pdiv"></div>
+  <div class="plbl">GLOW</div>
+  <div class="vswrap">
+    <input type="range" class="vsl" id="sGlow" min="0" max="100" value="60" oninput="onGlow(this)">
+  </div>
+  <div class="vval" id="vGlow">60%</div>
+  <div class="pdiv"></div>
+  <div class="plbl">STYLE</div>
+  <div class="strow">
+    <button class="stb on" data-s="pen"        onclick="pickStyle(this)">✒</button>
+    <button class="stb"    data-s="pencil"      onclick="pickStyle(this)">✏</button>
+    <button class="stb"    data-s="marker"      onclick="pickStyle(this)">🖊</button>
+    <button class="stb"    data-s="calligraphy" onclick="pickStyle(this)">🖋</button>
+    <button class="stb"    data-s="spray"       onclick="pickStyle(this)">💨</button>
+  </div>
+  <div class="pdiv"></div>
+  <div class="actrow">
+    <button class="abt" onclick="undo()">↩</button>
+    <button class="abt" onclick="redo()">↪</button>
+    <button class="abt red" onclick="clearAll()">🗑</button>
+    <button class="abt" onclick="saveImg()">⬇</button>
+  </div>
+</div>
+
+<div id="hud"><span id="hudEmoji">✊</span><span id="hudLabel">IDLE</span></div>
+<div id="zoomHud">🔍 100%</div>
+<div id="cur"></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script>
+const S={
+  color:'#ffffff',size:6,glow:0.6,brushStyle:'pen',
+  stab:0.45,flow:0.85,
+  gesture:'idle',gBuf:[],
+  drawing:false,lastPt:null,posBuf:[],
+  snaps:[],redoSnaps:[],
+  pinchAnchor:null,imgAtPinch:null,
+  indexPinching:false,indexPinchStart:null,indexPinchPos:null,
+  midPinching:false,midPinchStart:null,midPinchPos:null,
+  zoom:1.0,prevSpread:null,
+  camOn:true,
+};
+let dC,dX,oC,oX,vid,cur;
+window.addEventListener('DOMContentLoaded',()=>{
+  dC=document.getElementById('drawCanvas');dX=dC.getContext('2d');
+  oC=document.getElementById('ovCanvas');oX=oC.getContext('2d');
+  vid=document.getElementById('vid');cur=document.getElementById('cur');
+  resize();window.addEventListener('resize',resize);
+  initKeys();initMP();
+  setTimeout(()=>{const sp=document.getElementById('splash');sp.style.opacity='0';setTimeout(()=>sp.remove(),650);},2800);
+});
+function resize(){
+  const W=window.innerWidth,H=window.innerHeight;
+  let saved=null;
+  if(dC.width) saved=dX.getImageData(0,0,dC.width,dC.height);
+  [dC,oC].forEach(c=>{c.width=W;c.height=H;c.style.width=W+'px';c.style.height=H+'px';});
+  if(saved) dX.putImageData(saved,0,0);
+}
+let mpH;
+function initMP(){
+  document.getElementById('spSt').textContent='Loading MediaPipe…';
+  mpH=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+  mpH.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.70,minTrackingConfidence:.55});
+  mpH.onResults(onResults);
+  const cam=new Camera(vid,{onFrame:async()=>await mpH.send({image:vid}),width:1280,height:720});
+  cam.start().then(()=>document.getElementById('spSt').textContent='Ready!').catch(()=>document.getElementById('spSt').textContent='Camera denied.');
+}
+function ld(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0))}
+function ext(lm,tip,dip,pip,mcp){const w=lm[0],tdw=ld(lm[tip],w),pdw=ld(lm[pip],w),mdw=ld(lm[mcp],w);return tdw>pdw*.93&&tdw>mdw}
+function lmToScreen(lm,idx){return{x:(1-lm[idx].x)*dC.width,y:lm[idx].y*dC.height}}
+function toLocal(sx,sy){const W=dC.width,H=dC.height;return{x:W/2+(sx-W/2)/S.zoom,y:H/2+(sy-H/2)/S.zoom}}
+function rawGesture(lm){
+  const w=lm[0],tt=lm[4],it=lm[8];
+  const iUp=ext(lm,8,7,6,5),mUp=ext(lm,12,11,10,9),rUp=ext(lm,16,15,14,13),pUp=ext(lm,20,19,18,17);
+  const hs=ld(w,lm[9])+1e-6,ipinch=ld(tt,it)/hs;
+  if(ipinch<.32&&iUp&&mUp) return 'pinch';
+  if(ipinch<.32&&iUp&&!mUp) return 'draw';
+  if(iUp&&mUp&&rUp&&pUp) return 'erase';
+  if(iUp&&mUp&&!rUp&&!pUp) return 'vzoom';
+  if(iUp&&!mUp&&!rUp&&!pUp) return 'hover';
+  return 'idle';
+}
+function debounce(raw){
+  const b=S.gBuf;b.push(raw);if(b.length>5)b.shift();
+  const cnt={};b.forEach(g=>cnt[g]=(cnt[g]||0)+1);
+  const[best,n]=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+  if(n>=3&&best!==S.gesture){S.gesture=best;S.posBuf=[];onGestureSwitch(best);}
+  return S.gesture;
+}
+const HUD={draw:['☝️','DRAWING'],erase:['✋','ERASING'],pinch:['🤏','MOVING'],vzoom:['✌️','ZOOMING'],hover:['👆','HOVER'],idle:['✊','IDLE']};
+function onGestureSwitch(g){
+  if(g!=='draw'){S.drawing=false;S.lastPt=null;}
+  if(g!=='pinch') S.pinchAnchor=null;
+  if(g!=='vzoom') S.prevSpread=null;
+  const[e,l]=HUD[g]||['✊','IDLE'];
+  document.getElementById('hudEmoji').textContent=e;
+  document.getElementById('hudLabel').textContent=l;
+}
+const TAP_DUR=280,TAP_DIST=30;
+function checkTaps(lm){
+  const w=lm[0],hs=ld(w,lm[9])+1e-6,s=lmToScreen(lm,8);
+  const ipd=ld(lm[4],lm[8])/hs;
+  if(ipd<.28&&S.gesture!=='draw'&&S.gesture!=='pinch'&&!S.indexPinching){S.indexPinching=true;S.indexPinchStart=Date.now();S.indexPinchPos={...s};}
+  else if(ipd>=.28&&S.indexPinching){const dur=Date.now()-S.indexPinchStart,dist=Math.hypot(s.x-S.indexPinchPos.x,s.y-S.indexPinchPos.y);if(dur<TAP_DUR&&dist<TAP_DIST){undo();toast('↩ UNDO');}S.indexPinching=false;}
+  const mpd=ld(lm[4],lm[12])/hs;
+  if(mpd<.28&&!S.midPinching){S.midPinching=true;S.midPinchStart=Date.now();S.midPinchPos={...s};}
+  else if(mpd>=.28&&S.midPinching){const dur=Date.now()-S.midPinchStart,dist=Math.hypot(s.x-S.midPinchPos.x,s.y-S.midPinchPos.y);if(dur<TAP_DUR&&dist<TAP_DIST){redo();toast('↪ REDO');}S.midPinching=false;}
+}
+const BONES=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+function onResults(res){
+  oX.clearRect(0,0,oC.width,oC.height);
+  if(!res.multiHandLandmarks?.length){debounce('idle');hideCur();return;}
+  const lm=res.multiHandLandmarks[0];
+  const g=debounce(rawGesture(lm));
+  checkTaps(lm);
+  const raw=lmToScreen(lm,8),stab=stabilise(raw.x,raw.y),local=toLocal(stab.x,stab.y);
+  drawSkel(lm,g);showCur(raw.x,raw.y,g);
+  if(g==='draw') execDraw(local.x,local.y);
+  else if(g==='erase'){const ep=lmToScreen(lm,9),el=toLocal(ep.x,ep.y);execErase(el.x,el.y,ep.x,ep.y);}
+  else if(g==='pinch'){const pp=lmToScreen(lm,9),pl=toLocal(pp.x,pp.y);execPinch(pl.x,pl.y);}
+  else if(g==='vzoom') execZoom(lm);
+}
+function stabilise(rx,ry){
+  const s=S.stab;if(s<.01)return{x:rx,y:ry};
+  const maxB=Math.max(2,Math.round(s*20));
+  S.posBuf.push({x:rx,y:ry});if(S.posBuf.length>maxB)S.posBuf.shift();
+  let tw=0,wx=0,wy=0;
+  S.posBuf.forEach((p,i)=>{const w=(i+1)*(i+1);wx+=p.x*w;wy+=p.y*w;tw+=w;});
+  return{x:wx/tw,y:wy/tw};
+}
+let zoomTimer;
+function execZoom(lm){
+  const hs=ld(lm[0],lm[9])+1e-6,spread=ld(lm[8],lm[12])/hs;
+  if(S.prevSpread!==null){
+    const delta=spread-S.prevSpread;
+    if(Math.abs(delta)>.012){
+      S.zoom=Math.max(.4,Math.min(4,S.zoom+delta*9));
+      const pct=Math.round(S.zoom*100),zh=document.getElementById('zoomHud');
+      zh.textContent='🔍 '+pct+'%';zh.style.opacity='1';
+      clearTimeout(zoomTimer);zoomTimer=setTimeout(()=>zh.style.opacity='0',900);
+      dC.style.transform=`scale(${S.zoom})`;dC.style.transformOrigin='center center';
+    }
+  }
+  S.prevSpread=spread;
+}
+function setGlow(ctx){ctx.shadowBlur=S.glow>0?S.size*S.glow*2.5:0;ctx.shadowColor=S.color;}
+function drawPen(x,y){const p=S.lastPt;dX.save();dX.globalAlpha=S.flow;setGlow(dX);dX.beginPath();const mx=(p.x+x)/2,my=(p.y+y)/2;dX.moveTo(p.x,p.y);dX.quadraticCurveTo(p.x,p.y,mx,my);dX.strokeStyle=S.color;dX.lineWidth=S.size;dX.lineCap='round';dX.lineJoin='round';dX.stroke();dX.restore();}
+function drawPencil(x,y){const p=S.lastPt,j=S.size*.6;for(let i=0;i<4;i++){const ox=(Math.random()-.5)*j,oy=(Math.random()-.5)*j;dX.save();dX.globalAlpha=S.flow*(0.2+Math.random()*.35);dX.beginPath();dX.moveTo(p.x+ox,p.y+oy);dX.lineTo(x+ox,y+oy);dX.strokeStyle=S.color;dX.lineWidth=Math.max(.5,S.size*.3);dX.lineCap='round';dX.stroke();dX.restore();}}
+function drawMarker(x,y){const p=S.lastPt;dX.save();dX.globalAlpha=Math.min(1,S.flow*1.4);setGlow(dX);dX.beginPath();const mx=(p.x+x)/2,my=(p.y+y)/2;dX.moveTo(p.x,p.y);dX.quadraticCurveTo(p.x,p.y,mx,my);dX.strokeStyle=S.color;dX.lineWidth=S.size*2.2;dX.lineCap='square';dX.lineJoin='round';dX.stroke();dX.restore();}
+function drawCalligraphy(x,y){const p=S.lastPt,dx=x-p.x,dy=y-p.y,a=Math.atan2(dy,dx),w=S.size*(1+Math.abs(Math.sin(a+Math.PI/4))*2.5);dX.save();dX.globalAlpha=S.flow;setGlow(dX);dX.beginPath();const mx=(p.x+x)/2,my=(p.y+y)/2;dX.moveTo(p.x,p.y);dX.quadraticCurveTo(p.x,p.y,mx,my);dX.strokeStyle=S.color;dX.lineWidth=Math.max(.5,w);dX.lineCap='round';dX.lineJoin='round';dX.stroke();dX.restore();}
+function drawSpray(x,y){const density=18+Math.round(S.size*2),radius=S.size*3+10;dX.save();dX.fillStyle=S.color;for(let i=0;i<density;i++){const a=Math.random()*Math.PI*2,r=Math.random()*radius;dX.globalAlpha=S.flow*(0.1+Math.random()*.5);dX.beginPath();dX.arc(x+Math.cos(a)*r,y+Math.sin(a)*r,Math.max(.3,S.size*.12),0,Math.PI*2);dX.fill();}dX.restore();}
+function execDraw(x,y){if(!S.drawing){snap();S.drawing=true;S.lastPt={x,y};return;}switch(S.brushStyle){case 'pencil':drawPencil(x,y);break;case 'marker':drawMarker(x,y);break;case 'calligraphy':drawCalligraphy(x,y);break;case 'spray':drawSpray(x,y);break;default:drawPen(x,y);}S.lastPt={x,y};}
+function execErase(lx,ly,sx,sy){const r=S.size*4+20;dX.save();dX.globalCompositeOperation='destination-out';dX.beginPath();dX.arc(lx,ly,r,0,Math.PI*2);dX.fillStyle='rgba(0,0,0,1)';dX.fill();dX.restore();oX.save();oX.beginPath();oX.arc(sx,sy,r*S.zoom,0,Math.PI*2);oX.strokeStyle='rgba(232,69,96,.65)';oX.lineWidth=1.5;oX.stroke();oX.restore();}
+function execPinch(x,y){if(!S.pinchAnchor){snap();S.pinchAnchor={x,y};S.imgAtPinch=dX.getImageData(0,0,dC.width,dC.height);}const dx=x-S.pinchAnchor.x,dy=y-S.pinchAnchor.y;dX.clearRect(0,0,dC.width,dC.height);dX.putImageData(S.imgAtPinch,dx,dy);}
+const GCOL={draw:'#c9a84c',erase:'#e84560',pinch:'#4cc9f0',vzoom:'#3de07a',hover:'#7bed9f',idle:'rgba(255,255,255,.12)'};
+function drawSkel(lm,g){const W=oC.width,H=oC.height,mx=x=>(1-x)*W,my=y=>y*H,col=GCOL[g]||'rgba(255,255,255,.1)';oX.save();oX.strokeStyle=col;oX.lineWidth=1.2;oX.globalAlpha=.45;BONES.forEach(([a,b])=>{oX.beginPath();oX.moveTo(mx(lm[a].x),my(lm[a].y));oX.lineTo(mx(lm[b].x),my(lm[b].y));oX.stroke();});lm.forEach((p,i)=>{oX.beginPath();const isTip=[4,8,12,16,20].includes(i);oX.arc(mx(p.x),my(p.y),isTip?5:2.2,0,Math.PI*2);oX.fillStyle=i===8?col:(isTip?'rgba(255,255,255,.6)':'rgba(255,255,255,.2)');oX.globalAlpha=i===8?1:.6;oX.fill();});oX.restore();}
+const CCOL={draw:'var(--gold-l)',erase:'var(--red)',pinch:'var(--blue)',vzoom:'var(--green)',hover:'var(--green)',idle:'transparent'};
+function showCur(x,y,g){const sz=g==='draw'?Math.max(10,S.size+6):22;cur.style.left=x+'px';cur.style.top=y+'px';cur.style.width=sz+'px';cur.style.height=sz+'px';cur.style.borderColor=CCOL[g]||'transparent';cur.style.opacity=g==='idle'?'0':'1';}
+function hideCur(){cur.style.opacity='0';}
+const MAX_SNAP=30;
+function snap(){S.snaps.push(dX.getImageData(0,0,dC.width,dC.height));if(S.snaps.length>MAX_SNAP)S.snaps.shift();S.redoSnaps=[];}
+function undo(){if(S.snaps.length){S.redoSnaps.push(dX.getImageData(0,0,dC.width,dC.height));dX.putImageData(S.snaps.pop(),0,0);}}
+function redo(){if(S.redoSnaps.length){S.snaps.push(dX.getImageData(0,0,dC.width,dC.height));dX.putImageData(S.redoSnaps.pop(),0,0);}}
+function clearAll(){snap();dX.clearRect(0,0,dC.width,dC.height);}
+function pickColor(el){document.querySelectorAll('.csw').forEach(s=>s.classList.remove('on'));el.classList.add('on');S.color=el.dataset.c;}
+function onSize(el){S.size=parseInt(el.value);document.getElementById('vSize').textContent=el.value+'px';}
+function onGlow(el){S.glow=el.value/100;document.getElementById('vGlow').textContent=el.value+'%';}
+function pickStyle(el){document.querySelectorAll('.stb').forEach(s=>s.classList.remove('on'));el.classList.add('on');S.brushStyle=el.dataset.s;}
+function saveImg(){const a=document.createElement('a');a.href=dC.toDataURL('image/png');a.download='airctrl-'+Date.now()+'.png';a.click();}
+function toggleCam(){S.camOn=!S.camOn;const btn=document.getElementById('camToggle');document.getElementById('vid').style.opacity=S.camOn?'1':'0';document.getElementById('vidOff').style.opacity=S.camOn?'0':'1';btn.textContent=S.camOn?'📷\u00A0 Camera ON':'📷\u00A0 Camera OFF';btn.classList.toggle('off',!S.camOn);}
+function initKeys(){window.addEventListener('keydown',e=>{const mod=e.ctrlKey||e.metaKey;if(mod&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();}if(mod&&((e.shiftKey&&e.key==='z')||e.key==='y')){e.preventDefault();redo();}if(e.key==='Delete'||e.key==='Backspace')clearAll();});}
+let toastTimer;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.opacity='1';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.opacity='0',1000);}
+</script>
+</body>
+</html>
